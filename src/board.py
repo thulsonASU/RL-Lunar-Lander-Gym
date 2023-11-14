@@ -2,7 +2,8 @@
 TODO:
     - Add logic for when a piece is able to be captured
         - Always check if a piece can be captured and if so player must move again
-    - Add logic for when a piece is able to be kinged
+    
+    - Add logic for when a piece is able to be kinged ( Might not do this and just allow all directional movement for pieces )
         - Kinged pieces can move backwards
 """
 
@@ -26,6 +27,9 @@ class CheckersBoard:
         self.white_pieces = None
         self.black_pieces = None
         self.starting_player = random.choice(['w','b'])
+        self.boardRetryCounter = 0
+        self.winner_bool = False
+        self.move_list = []
 
     def print_board(self,player):
         print("  " + " ".join(str(i) for i in range(len(self.board[0]))))  # print column numbers
@@ -78,10 +82,38 @@ class CheckersBoard:
                         possible_moves.append((row,col,row+2,col+2))
         return possible_moves
 
+    def can_jump(self, player):
+        
+        # Get directions possible to given player
+        if player == 'w':
+            directions = {'fr': (-1, 1), 'fl': (-1, -1), 'br': (1, 1), 'bl': (1, -1)}
+        else:
+            directions = {'fr': (1, 1), 'fl': (1, -1), 'br': (-1, 1), 'bl': (-1, -1)}
+        
+        # Check opponent piece in each direction
+        opponent = 'b' if player == 'w' else 'w'
+
+        # scan entire board to see if a jump is possible, if it is return true
+        for row_index in range(len(self.board)):
+            for col_index in range(len(self.board)):
+                if self.board[row_index][col_index] == player:
+                    for direction in directions:
+                        dx, dy = directions[direction]
+                        if self.is_valid_position(row_index + 2 * dx, col_index + 2 * dy) and self.board[row_index + dx][col_index + dy] == opponent and self.board[row_index + 2 * dx][col_index + 2 * dy] == '_':
+                            return True
+        return False
+
     def make_move(self, move, player):
         row, col = move[0]
         direction = move[1]
         dx, dy = 0, 0
+
+        # Input Check for Direction
+        # Check if direction is valid
+        if direction not in ['fr', 'fl', 'bl', 'br']:
+            self.boardRetryCounter += 1
+            raise ValueError("Invalid direction, please enter 'fr', 'fl', 'bl', or 'br'.")
+        
         if player == 'w':
             if direction == 'fr':
                 dx, dy = -1, 1
@@ -93,37 +125,82 @@ class CheckersBoard:
                 dx, dy = 1, -1
         else:
             if direction == 'fr':
-                dx, dy = 1, -1
-            elif direction == 'fl':
                 dx, dy = 1, 1
+            elif direction == 'fl':
+                dx, dy = 1, -1
             elif direction == 'br':
-                dx, dy = -1, -1
-            elif direction == 'bl':
                 dx, dy = -1, 1
+            elif direction == 'bl':
+                dx, dy = -1, -1
 
         new_move = (row + dx, col + dy)
 
         # If the destination square is occupied, move one more square in the same direction
         if str(self.board[new_move[0]][new_move[1]]) != '_':
-            print("there")
             new_move = (row, col, new_move[0] + dx, new_move[1] + dy)
         else:
-            print("here")
             new_move = (row, col, new_move[0], new_move[1])
-        
+       
+        # Check if move is possible
         possible_moves = self.get_possible_moves(player)
-        
-        print(possible_moves)
-        print(new_move)
-        
+
+        # Jump Opponent Piece Check
+        can_jump = self.can_jump(player)
+        print("can jump: " + str(can_jump))
+
+        # Input Check for Moves
         if new_move not in possible_moves:
-            raise ValueError("Invalid move")
-        # Updte piece on board
-        
+            self.boardRetryCounter += 1 
+            raise ValueError("Invalid move, please try again.")
+
+        # if can_jump:
+            
+        # Update piece on board 
         if new_move[0] == new_move[2] - 2 or new_move[0] == new_move[2] + 2:
             self.board[(new_move[0] + new_move[2]) // 2][(new_move[1] + new_move[3]) // 2] = '_'
         self.board[new_move[2]][new_move[3]] = self.board[new_move[0]][new_move[1]]
         self.board[new_move[0]][new_move[1]] = '_'
+    
+    def is_valid_position(self, row, col):
+        return 0 <= row < len(self.board) and 0 <= col < len(self.board[0])
+        
+    def get_user_move(self, player):
+        
+        self.print_board(player)
+
+        while True:
+            # ask user to make a move
+            move = input(f"{player}'s turn. Enter your move (e.g. '50 fr'): ")
+
+            try:
+                # Parse the move
+                from_pos, direction = move.split()
+                from_pos = (int(from_pos[0]), int(from_pos[1]))
+
+                # Make the move    
+                move = self.make_move(((from_pos[0], from_pos[1]), direction), player)
+                self.move_list.append((player, (from_pos[0], from_pos[1]), direction))
+
+                break  # if the move is valid, break the loop
+            except ValueError as e:
+                print(e)
+
+                if self.boardRetryCounter >= 3:
+                    # reprint board request
+                    boardPrint = ''
+                    while boardPrint != 'y' and boardPrint != 'n':
+                        boardPrint = input("Would you like to print the board? (y/n): ")
+                        if boardPrint == 'y':
+                            self.print_board(player)
+                            self.boardRetryCounter = 0
+                        continue
+    
+    def swap_players(self, player):
+        if player == 'w':
+            player = 'b'
+        else:
+            player = 'w'
+        return player
     
     def get_winner(self):
             self.white_pieces = 0
@@ -136,71 +213,14 @@ class CheckersBoard:
                         self.black_pieces += 1
             if self.white_pieces == 0:
                 self.winner == 'b'
+                self.winner_bool = True
+                print("Black Wins!")
             elif self.black_pieces == 0:
                 self.winner = 'w'
+                self.winner_bool = True
+                print("White Wins!")
             else:
-                return
-                
-if __name__ == '__main__':
-    
-    # Start board instance
-    board = CheckersBoard()
-    
-    # Starting player
-    current_player = board.starting_player
-    
-    # Main Loop
-    while True:
-
-        # Update Board
-        board.print_board(current_player)
-        move_list = []
-        
-        while True:
-            # ask user to make a move
-            move = input(f"{current_player}'s turn. Enter your move (e.g. '50 fr'): ")
-
-            try:
-                # Parse the move
-                from_pos, direction = move.split()
-                from_pos = (int(from_pos[0]), int(from_pos[1]))
-
-                # Check if direction is valid
-                if direction not in ['fr', 'fl', 'bl', 'br']:
-                    raise ValueError("Invalid direction, please enter 'fr', 'fl', 'bl', or 'br'.")
-
-                # Make the move    
-                move = board.make_move(((from_pos[0], from_pos[1]), direction), current_player)
-                move_list.append(((from_pos[0], from_pos[1]), direction))
-
-                break  # if the move is valid, break the loop and swap players
-            except ValueError as e:
-                print(e)
-                print("Invalid move, please try again.")
-
-                # reprint board request
-                boardPrint = ''
-                while boardPrint != 'y' and boardPrint != 'n':
-                    boardPrint = input("Would you like to print the board? (y/n): ")
-                    if boardPrint == 'y':
-                        board.print_board()
-                    continue
-        
-        # Get winner
-        board.get_winner()
-        if board.winner == 'w':
-            print("White Wins!")
-            break
-        elif board.winner == 'b':
-            print("Black Wins!")
-            break
-        else:
-            print(f" Number of white pieces remaining: {board.white_pieces}")
-            print(f" Number of black pieces remaining: {board.black_pieces}")
-            print("Moves Made so Far: " + str(move_list))
-            
-        # Swap Players (Add if a piece is taken then don't swap logic)
-        if current_player == 'w':
-            current_player = 'b'
-        else:
-            current_player = 'w'
+                print(f" Number of white pieces remaining: {self.white_pieces}")
+                print(f" Number of black pieces remaining: {self.black_pieces}")
+                print("Moves Made so Far: " + str(self.move_list))
+                return self.winner, self.winner_bool
