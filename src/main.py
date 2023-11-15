@@ -11,9 +11,9 @@ if __name__ == '__main__':
     # Main Loop
     while True:
 
-        # Get user move and update board
-        board.get_user_move(current_player)
-            
+        # Get if user can jump again (if so ask to jump again until they can't) (user makes a move)
+        board.user_move(current_player)
+
         # Swap players
         current_player = board.swap_players(current_player)
 

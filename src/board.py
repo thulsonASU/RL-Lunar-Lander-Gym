@@ -1,8 +1,5 @@
 """
 TODO:
-    - Add logic for when a piece is able to be captured
-        - Always check if a piece can be captured and if so player must move again
-    
     - Add logic for when a piece is able to be kinged ( Might not do this and just allow all directional movement for pieces )
         - Kinged pieces can move backwards
 """
@@ -11,21 +8,47 @@ import random
 
 class CheckersBoard:
     def __init__(self):
+        # self.board = [
+        #     ['_', 'b', '_', 'b', '_', 'b', '_', 'b'],
+        #     ['b', '_', 'b', '_', 'b', '_', 'b', '_'],
+        #     ['_', 'b', '_', 'b', '_', 'b', '_', 'b'],
+        #     ['_', '_', '_', '_', '_', '_', '_', '_'],
+        #     ['_', '_', '_', '_', '_', '_', '_', '_'],
+        #     ['w', '_', 'w', '_', 'w', '_', 'w', '_'],
+        #     ['_', 'w', '_', 'w', '_', 'w', '_', 'w'],
+        #     ['w', '_', 'w', '_', 'w', '_', 'w', '_']
+        # ]
+
+        # Board for jump testing
+        # self.board = [
+        #     ['_', 'b', '_', 'b', '_', 'b', '_', 'b'],
+        #     ['b', '_', 'b', '_', 'b', '_', '_', '_'],
+        #     ['_', 'b', '_', 'b', '_', 'b', '_', 'b'],
+        #     ['_', '_', '_', '_', '_', '_', '_', '_'],
+        #     ['_', '_', '_', 'b', '_', '_', '_', '_'],
+        #     ['w', '_', 'w', '_', 'w', '_', 'w', '_'],
+        #     ['_', 'w', '_', 'w', '_', 'w', '_', 'w'],
+        #     ['w', '_', 'w', '_', 'w', '_', 'w', '_']
+        # ]
+
+        # Board for king jump testing
         self.board = [
             ['_', 'b', '_', 'b', '_', 'b', '_', 'b'],
-            ['b', '_', 'b', '_', 'b', '_', 'b', '_'],
-            ['_', 'b', '_', 'b', '_', 'b', '_', 'b'],
+            ['b', '_', 'b', '_', '_', '_', '_', '_'],
+            ['_', 'b', '_', 'b', '_', 'bk', '_', 'b'],
             ['_', '_', '_', '_', '_', '_', '_', '_'],
-            ['_', '_', '_', '_', '_', '_', '_', '_'],
-            ['w', '_', 'w', '_', 'w', '_', 'w', '_'],
-            ['_', 'w', '_', 'w', '_', 'w', '_', 'w'],
+            ['_', 'bk', '_', '_', '_', '_', '_', '_'],
+            ['wk', '_', 'w', '_', 'wk', '_', 'w', '_'],
+            ['_', 'w', '_', '_', '_', '_', '_', 'w'],
             ['w', '_', 'w', '_', 'w', '_', 'w', '_']
         ]
 
         # Initalize attributes
         self.winner = None
+        self.opponent = None
         self.white_pieces = None
         self.black_pieces = None
+        self.must_jump = None
         self.starting_player = random.choice(['w','b'])
         self.boardRetryCounter = 0
         self.winner_bool = False
@@ -48,9 +71,9 @@ class CheckersBoard:
                     possible_moves += self.get_possible_moves_for_piece(row_index, col_index, player)
         return possible_moves
     
-    def get_possible_moves_for_piece(self,row,col,player):
+    def get_possible_moves_for_piece(self, row, col, player):
         possible_moves = []
-        if player == 'w':
+        if player == 'w' or player == 'wk':
             if row > 0:
                 if col > 0:
                     if self.board[row-1][col-1] == '_':
@@ -65,6 +88,21 @@ class CheckersBoard:
                 if col < 6:
                     if self.board[row-1][col+1] == 'b' and self.board[row-2][col+2] == '_':
                         possible_moves.append((row,col,row-2,col+2))
+            if player == 'wk':
+                if row < 7:
+                    if col > 0:
+                        if self.board[row+1][col-1] == '_':
+                            possible_moves.append((row,col,row+1,col-1))
+                    if col < 7:
+                        if self.board[row+1][col+1] == '_':
+                            possible_moves.append((row,col,row+1,col+1))
+                if row < 6:
+                    if col > 1:
+                        if self.board[row+1][col-1] == 'b' and self.board[row+2][col-2] == '_':
+                            possible_moves.append((row,col,row+2,col-2))
+                    if col < 6:
+                        if self.board[row+1][col+1] == 'b' and self.board[row+2][col+2] == '_':
+                            possible_moves.append((row,col,row+2,col+2))
         elif player == 'b':
             if row < 7:
                 if col > 0:
@@ -80,6 +118,21 @@ class CheckersBoard:
                 if col < 6:
                     if self.board[row+1][col+1] == 'w' and self.board[row+2][col+2] == '_':
                         possible_moves.append((row,col,row+2,col+2))
+            if player == 'bk':
+                if row > 0:
+                    if col > 0:
+                        if self.board[row-1][col-1] == '_':
+                            possible_moves.append((row,col,row-1,col-1))
+                    if col < 7:
+                        if self.board[row-1][col+1] == '_':
+                            possible_moves.append((row,col,row-1,col+1))
+                if row > 1:
+                    if col > 1:
+                        if self.board[row-1][col-1] == 'w' and self.board[row-2][col-2] == '_':
+                            possible_moves.append((row,col,row-2,col-2))
+                    if col < 6:
+                        if self.board[row-1][col+1] == 'w' and self.board[row-2][col+2] == '_':
+                            possible_moves.append((row,col,row-2,col+2))
         return possible_moves
 
     def can_jump(self, player):
@@ -91,7 +144,7 @@ class CheckersBoard:
             directions = {'fr': (1, 1), 'fl': (1, -1), 'br': (-1, 1), 'bl': (-1, -1)}
         
         # Check opponent piece in each direction
-        opponent = 'b' if player == 'w' else 'w'
+        self.opponent = 'b' if player == 'w' else 'w'
 
         # scan entire board to see if a jump is possible, if it is return true
         for row_index in range(len(self.board)):
@@ -99,7 +152,7 @@ class CheckersBoard:
                 if self.board[row_index][col_index] == player:
                     for direction in directions:
                         dx, dy = directions[direction]
-                        if self.is_valid_position(row_index + 2 * dx, col_index + 2 * dy) and self.board[row_index + dx][col_index + dy] == opponent and self.board[row_index + 2 * dx][col_index + 2 * dy] == '_':
+                        if self.is_valid_position(row_index + 2 * dx, col_index + 2 * dy) and self.board[row_index + dx][col_index + dy] == self.opponent and self.board[row_index + 2 * dx][col_index + 2 * dy] == '_':
                             return True
         return False
 
@@ -137,6 +190,7 @@ class CheckersBoard:
 
         # If the destination square is occupied, move one more square in the same direction
         if str(self.board[new_move[0]][new_move[1]]) != '_':
+            make_jump = True
             new_move = (row, col, new_move[0] + dx, new_move[1] + dy)
         else:
             new_move = (row, col, new_move[0], new_move[1])
@@ -144,23 +198,34 @@ class CheckersBoard:
         # Check if move is possible
         possible_moves = self.get_possible_moves(player)
 
-        # Jump Opponent Piece Check
-        can_jump = self.can_jump(player)
-        print("can jump: " + str(can_jump))
-
+        print("possible moves: " + str(possible_moves))
         # Input Check for Moves
         if new_move not in possible_moves:
-            self.boardRetryCounter += 1 
+            self.boardRetryCounter += 1
             raise ValueError("Invalid move, please try again.")
+        elif self.must_jump:
+            if str(self.board[new_move[2]-dx][new_move[3]-dy]) == self.opponent and self.must_jump:
+                pass
+            else:
+                self.boardRetryCounter += 1
+                raise ValueError("Invalid move, you must jump the opponents piece.")
+        else:
+            pass
 
-        # if can_jump:
-            
         # Update piece on board 
         if new_move[0] == new_move[2] - 2 or new_move[0] == new_move[2] + 2:
             self.board[(new_move[0] + new_move[2]) // 2][(new_move[1] + new_move[3]) // 2] = '_'
         self.board[new_move[2]][new_move[3]] = self.board[new_move[0]][new_move[1]]
         self.board[new_move[0]][new_move[1]] = '_'
-    
+
+        # Check if the piece has reached the opposite end of the board
+        if player == 'w' and new_move[2] == 7:
+            # King the piece
+            self.board[new_move[2]][new_move[3]] = 'wk'
+        elif player == 'b' and new_move[2] == 0:
+            # King the piece
+            self.board[new_move[2]][new_move[3]] = 'bk'
+        
     def is_valid_position(self, row, col):
         return 0 <= row < len(self.board) and 0 <= col < len(self.board[0])
         
@@ -195,6 +260,22 @@ class CheckersBoard:
                             self.boardRetryCounter = 0
                         continue
     
+    def user_move(self, player):
+        user_jumped = False
+        while True:
+            # Jump Opponent Piece Check
+            self.must_jump = self.can_jump(player)
+            if self.must_jump:
+                print(f"Player: {player} must jump the opponents piece.")
+                self.get_user_move(player)
+                user_jumped = True
+            elif user_jumped == False:
+                self.get_user_move(player)
+                break
+            else:
+                break
+            continue
+        
     def swap_players(self, player):
         if player == 'w':
             player = 'b'
