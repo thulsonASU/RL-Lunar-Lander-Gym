@@ -19,6 +19,18 @@ class CheckersBoard:
         #     ['w', '_', 'w', '_', 'w', '_', 'w', '_']
         # ]
 
+        # Directional Jump Test
+        self.board = [
+            ['_', 'b', '_', 'b', '_', 'b', '_', 'b'],
+            ['b', '_', '_', '_', 'b', '_', '_', '_'],
+            ['_', 'b', '_', '_', '_', 'b', '_', 'b'],
+            ['_', '_', '_', '_', 'w', '_', '_', '_'],
+            ['_', '_', '_', 'b', '_', 'b', '_', '_'],
+            ['w', '_', '_', '_', 'w', '_', '_', '_'],
+            ['_', 'w', '_', 'w', '_', 'w', '_', 'w'],
+            ['w', '_', 'w', '_', 'w', '_', 'w', '_']
+        ]
+
         # Board for jump testing
         # self.board = [
         #     ['_', 'b', '_', 'b', '_', 'b', '_', 'b'],
@@ -32,16 +44,16 @@ class CheckersBoard:
         # ]
 
         # Board for king jump testing
-        self.board = [
-            ['_', 'b', '_', 'b', '_', 'b', '_', 'b'],
-            ['b', '_', 'b', '_', '_', '_', '_', '_'],
-            ['_', 'b', '_', 'b', '_', 'bk', '_', 'b'],
-            ['_', '_', '_', '_', '_', '_', '_', '_'],
-            ['_', 'bk', '_', '_', '_', '_', '_', '_'],
-            ['wk', '_', 'w', '_', 'wk', '_', 'w', '_'],
-            ['_', 'w', '_', '_', '_', '_', '_', 'w'],
-            ['w', '_', 'w', '_', 'w', '_', 'w', '_']
-        ]
+        # self.board = [
+        #     ['_', 'b', '_', 'b', '_', 'b', '_', 'b'],
+        #     ['b', '_', 'b', '_', '_', '_', '_', '_'],
+        #     ['_', 'b', '_', 'b', '_', 'B', '_', 'b'],
+        #     ['_', '_', '_', '_', '_', '_', '_', '_'],
+        #     ['_', 'B', '_', '_', '_', '_', '_', '_'],
+        #     ['W', '_', 'w', '_', 'W', '_', 'w', '_'],
+        #     ['_', 'w', '_', '_', '_', '_', '_', 'w'],
+        #     ['w', '_', 'w', '_', 'w', '_', 'w', '_']
+        # ]
 
         # Initalize attributes
         self.winner = None
@@ -136,23 +148,17 @@ class CheckersBoard:
         return possible_moves
 
     def can_jump(self, player):
-        
-        # Get directions possible to given player
-        if player == 'w':
-            directions = {'fr': (-1, 1), 'fl': (-1, -1), 'br': (1, 1), 'bl': (1, -1)}
-        else:
-            directions = {'fr': (1, 1), 'fl': (1, -1), 'br': (-1, 1), 'bl': (-1, -1)}
-        
-        # Check opponent piece in each direction
-        self.opponent = 'b' if player == 'w' else 'w'
-
-        # scan entire board to see if a jump is possible, if it is return true
-        for row_index in range(len(self.board)):
-            for col_index in range(len(self.board)):
-                if self.board[row_index][col_index] == player:
-                    for direction in directions:
-                        dx, dy = directions[direction]
-                        if self.is_valid_position(row_index + 2 * dx, col_index + 2 * dy) and self.board[row_index + dx][col_index + dy] == self.opponent and self.board[row_index + 2 * dx][col_index + 2 * dy] == '_':
+        opponent = 'b' if player == 'w' else 'w'
+        for row in range(len(self.board)):
+            for col in range(len(self.board[row])):
+                piece = self.board[row][col]
+                if piece.lower() == player:
+                    is_king = piece.isupper()
+                    directions = [(1, -1), (1, 1)] if player == 'b' or is_king else [(-1, -1), (-1, 1)]
+                    for dx, dy in directions:
+                        if (self.is_valid_position(row + dx, col + dy) and 
+                            self.board[row + dx][col + dy].lower() == opponent and 
+                            self.is_valid_position(row + 2 * dx, col + 2 * dy)):
                             return True
         return False
 
@@ -227,7 +233,10 @@ class CheckersBoard:
             self.board[new_move[2]][new_move[3]] = 'bk'
         
     def is_valid_position(self, row, col):
-        return 0 <= row < len(self.board) and 0 <= col < len(self.board[0])
+        try:
+            return (0 <= row < len(self.board) and 0 <= col < len(self.board[0])) and ((self.board[row + 1][col + 1] == '_') or (self.board[row + 1][col - 1] == '_'))
+        except IndexError:
+            return False
         
     def get_user_move(self, player):
         
