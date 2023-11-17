@@ -236,15 +236,21 @@ class Game:
         
         
         if self.Turn ==  1: 
-            randidx = random.randint(0,len(BlueChips)-1)
-            self.FirstChoice = BlueChips[randidx]
-            print("Blues Turn")
-            self.Turn = 2
+            if BlueChips:
+                randidx = random.randint(0,len(BlueChips)-1)
+                self.FirstChoice = BlueChips[randidx]
+                print("Blues Turn")
+                self.Turn = 2
+            else:
+                print("No Blue Chips Left")
         else:
-            randidx = random.randint(0,len(RedChips)-1)
-            self.FirstChoice = RedChips[randidx]
-            self.Turn = 1
-            print("Reds Turn")
+            if RedChips:
+                randidx = random.randint(0,len(RedChips)-1)
+                self.FirstChoice = RedChips[randidx]
+                self.Turn = 1
+                print("Reds Turn")
+            else:
+                print("No Red Chips Left")
         
         
         print("First Choice = ", self.FirstChoice)
