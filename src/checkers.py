@@ -41,6 +41,10 @@ import sys
 from pygame.locals import *
 import mouse
 import random
+import os
+
+# get path to resources folder
+path = os.path.dirname(os.path.realpath(__file__)) + "/resources/"
 
 pygame.font.init()
 
@@ -270,7 +274,7 @@ class Graphics:
         self.window_size = 600
         self.screen = pygame.display.set_mode(
             (self.window_size, self.window_size))
-        self.background = pygame.image.load('resources/board.png')
+        self.background = pygame.image.load(path+'/board.png')
 
         self.square_size = self.window_size >> 3
         self.piece_size = self.square_size >> 1
