@@ -91,10 +91,10 @@ class Game:
         """
         #self.mouse_pos = self.graphics.board_coords(
         #    pygame.mouse.get_pos())  # what square is the mouse in?
-        self.AllPossibleMoves()
-        move = self.BadAI()
+        self.AllPossibleMoves() # get all possible moves from
+        move = self.BadAI() # Random selection
         self.InputToMove(move)
-        self.TurnTracker()
+        self.TurnTracker() # Does next turn
         #self.SlightlyBetterAI()
         
         #print(self.mouse_pos)
@@ -143,17 +143,17 @@ class Game:
                     self.selected_piece = self.mouse_pos
         
             
-    def update(self):
+    def update(self): # Display Update
         """Calls on the graphics class to update the game display."""
         self.graphics.update_display(
             self.board, self.selected_legal_moves, self.selected_piece)
 
-    def terminate_game(self):
+    def terminate_game(self): # Quit instead of error
         """Quits the program and ends the game."""
         pygame.quit()
         sys.exit
 
-    def main(self):
+    def main(self): # Main setup stuff
         """"This executes the game and controls its flow."""
         self.setup()
 
@@ -163,7 +163,7 @@ class Game:
             self.update()
             
 
-    def end_turn(self):
+    def end_turn(self): # Ends turn
         """
         End the turn. Switches the current player. 
         end_turn() also checks for and game and resets a lot of class attributes.
@@ -184,7 +184,7 @@ class Game:
                 self.graphics.draw_message("BLUE WINS!")
     
 
-    def check_for_endgame(self):
+    def check_for_endgame(self): # Check for winner
         """
         Checks to see if a player has run out of moves or pieces. If so, then return True. Else return False.
         """
@@ -242,7 +242,7 @@ class Game:
         print("First Choice = ", self.FirstChoice)
         self.mouse_pos = tuple(self.FirstChoice)"""
         
-    def SlightlyBetterAI(self):
+    def SlightlyBetterAI(self): # Depreciated
         "THIS FUNCTION IS RETIRED :)"
         
         """
@@ -257,6 +257,7 @@ class Game:
             else:
                 print("--No Moves were applicable Choose again.")
         """
+
     def AllPossibleMoves(self):
         "This Function will print out all possible move the player can take"
         "It will use a [[x,y],[x,y]] format"
@@ -278,16 +279,16 @@ class Game:
                     for y in range(len(self.MakeableMoves)):
     
                         self.BlueMoves.append([BlueChips[x],list(self.MakeableMoves[y])])
-            print("ALL POSSIBLE MOVES FOR BLUE:\n",self.BlueMoves)
+            print("ALL POSSIBLE MOVES FOR BLUE:\n",self.BlueMoves) # debug print
         else:
             for x in range(len(RedChips)):
                 self.MakeableMoves = list(self.board.legal_moves(RedChips[x]))
                 if self.MakeableMoves != []:
                     for y in range(len(self.MakeableMoves)):
                         self.RedMoves.append([RedChips[x],list(self.MakeableMoves[y])])
-            print("ALL POSSIBLE MOVES FOR RED:\n",self.RedMoves)
+            print("ALL POSSIBLE MOVES FOR RED:\n",self.RedMoves) # debug print
             
-    def InputToMove(self,InputFromAI):
+    def InputToMove(self,InputFromAI): # frame movement
         print("INPUT:",InputFromAI)
         if self.Selected!=True:
             self.mouse_pos = tuple(InputFromAI[0])
@@ -304,6 +305,7 @@ class Game:
         elif self.Turn == 2 and self.TurnTaken:
             self.Turn = 1
             self.TurnTaken = False
+
 class Graphics:
     def __init__(self):
         self.caption = "Checkers"
@@ -670,8 +672,6 @@ class Square:
 def main():
     game = Game()
     game.main()
-    
-
 
 if __name__ == "__main__":
     main()
