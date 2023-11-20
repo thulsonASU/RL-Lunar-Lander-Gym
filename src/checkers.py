@@ -72,7 +72,8 @@ class Game:
     def __init__(self):
         self.graphics = Graphics()
         self.board = Board()
-
+        self.TurnTaken = False
+        self.Selected = False
         self.turn = BLUE
         self.selected_piece = None  # a board location.
         self.hop = False
@@ -90,8 +91,12 @@ class Game:
         """
         #self.mouse_pos = self.graphics.board_coords(
         #    pygame.mouse.get_pos())  # what square is the mouse in?
-        self.BadAI()
-        self.SlightlyBetterAI()
+        self.AllPossibleMoves()
+        move = self.BadAI()
+        self.InputToMove(move)
+        self.TurnTracker()
+        #self.SlightlyBetterAI()
+        
         #print(self.mouse_pos)
         
 
@@ -190,8 +195,22 @@ class Game:
                         return False
 
         return True
+    
+    
     def BadAI(self):
-        RedChips = []
+        "THIS FUNCTION IS REWORKED TO USE THE AllPossibleMoves FUNCTION "
+        if self.Selected!=True:
+            if self.Turn == 1:
+                randidx = random.randint(0,len(self.BlueMoves)-1)
+                self.MyMove = self.BlueMoves[randidx]
+            else:
+                randidx = random.randint(0,len(self.RedMoves)-1)
+                self.MyMove = self.RedMoves[randidx]
+        return self.MyMove
+        
+        
+        
+        """RedChips = []
         BlueChips = []
         for x in range(8):
             for y in range(8):
@@ -221,9 +240,12 @@ class Game:
         
         
         print("First Choice = ", self.FirstChoice)
-        self.mouse_pos = tuple(self.FirstChoice)
+        self.mouse_pos = tuple(self.FirstChoice)"""
         
     def SlightlyBetterAI(self):
+        "THIS FUNCTION IS RETIRED :)"
+        
+        """
         if self.selected_piece != None:
             self.ApplicableMoves = self.board.legal_moves(self.selected_piece)
             #print(self.board.legal_moves(self.selected_piece))
@@ -234,9 +256,54 @@ class Game:
                 print("-Second Choice = ", self.SecondChoice)
             else:
                 print("--No Moves were applicable Choose again.")
-        ""
+        """
+    def AllPossibleMoves(self):
+        "This Function will print out all possible move the player can take"
+        "It will use a [[x,y],[x,y]] format"
+        RedChips = []
+        BlueChips = []
+        for x in range(8):
+            for y in range(8):
+                if self.board.matrix[x][y].occupant != None:
+                    if self.board.matrix[x][y].occupant.color == (0,0,255):
+                        RedChips.append([x,y])
+                    if self.board.matrix[x][y].occupant.color == (255,0,0):
+                        BlueChips.append([x,y])
+        self.RedMoves = []
+        self.BlueMoves = []
+        if self.Turn == 1:
+            for x in range(len(BlueChips)):
+                self.MakeableMoves = list(self.board.legal_moves(BlueChips[x]))
+                if self.MakeableMoves != []:
+                    for y in range(len(self.MakeableMoves)):
+    
+                        self.BlueMoves.append([BlueChips[x],list(self.MakeableMoves[y])])
+            print("ALL POSSIBLE MOVES FOR BLUE:\n",self.BlueMoves)
+        else:
+            for x in range(len(RedChips)):
+                self.MakeableMoves = list(self.board.legal_moves(RedChips[x]))
+                if self.MakeableMoves != []:
+                    for y in range(len(self.MakeableMoves)):
+                        self.RedMoves.append([RedChips[x],list(self.MakeableMoves[y])])
+            print("ALL POSSIBLE MOVES FOR RED:\n",self.RedMoves)
+            
+    def InputToMove(self,InputFromAI):
+        print("INPUT:",InputFromAI)
+        if self.Selected!=True:
+            self.mouse_pos = tuple(InputFromAI[0])
+            self.Selected=True
+        else:
+            self.mouse_pos = tuple(InputFromAI[1] )
+            self.Selected=False
+            self.TurnTaken = True
         
-
+    def TurnTracker(self):
+        if self.Turn == 1 and self.TurnTaken:
+            self.Turn = 2
+            self.TurnTaken = False
+        elif self.Turn == 2 and self.TurnTaken:
+            self.Turn = 1
+            self.TurnTaken = False
 class Graphics:
     def __init__(self):
         self.caption = "Checkers"
