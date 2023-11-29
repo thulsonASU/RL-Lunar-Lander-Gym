@@ -42,6 +42,8 @@ from pygame.locals import *
 import mouse
 import random
 import os
+import gym
+from gym import spaces
 
 # get path to resources folder
 path = os.path.dirname(os.path.realpath(__file__)) + "/resources/"
@@ -62,7 +64,6 @@ NORTHWEST = "northwest"
 NORTHEAST = "northeast"
 SOUTHWEST = "southwest"
 SOUTHEAST = "southeast"
-
 
 class Game:
     """
@@ -442,6 +443,8 @@ class Board:
             for y in range(5, 8):
                 if matrix[x][y].color == BLACK:
                     matrix[x][y].occupant = Piece(BLUE)
+
+        print(matrix)
         
         return matrix
 
@@ -668,6 +671,44 @@ class Square:
         self.color = color  # color is either BLACK or WHITE
         self.occupant = occupant  # occupant is a Square object
 
+class CheckersEnv(gym.Env):
+
+    # 
+    # UPDATE THE STEP FUNCTION 
+    #
+    def __init__(self):
+        super().__init__()
+        self.game = Game()
+        # Define the action space as the maximum possible number of actions
+        self.action_space = spaces.Discrete(64*64)
+        self.observation_space = spaces.Box(low=-1, high=1, shape=(8, 8), dtype=np.int)
+
+    def step(self, action):
+        # Convert the action from an integer to a move
+        start = (action // 64, action % 64)
+        end = ((action // 64) + 1, (action % 64) + 1)
+        move = [start, end]
+
+        # Check if the move is valid
+        if move in Game.AllPossibleMoves():
+            # If the move is valid, make the move and return the new state, reward, done, and info
+            self.game.make_move(move)
+            state = self.game.get_state()
+            reward = self.game.get_reward()
+            done = self.game.is_done()
+            info = {}
+            return state, reward, done, info
+        else:
+            # If the move is not valid, return a negative reward
+            return self.game.get_state(), -1, False, {}
+         
+    def reset(self):
+        print("hi")
+        # Reset the game and return the initial state
+
+    def render(self, mode='human'):
+        print("hi")
+        # Implement rendering of the game state
 
 def main():
     game = Game()
