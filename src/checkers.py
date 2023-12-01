@@ -1,305 +1,721 @@
-import numpy as np
+"""
+checkers.py
+
+A simple checkers engine written in Python with the pygame 1.9.1 libraries.
+
+Here are the rules I am using: http://boardgames.about.com/cs/checkersdraughts/ht/play_checkers.htm
+
+I adapted some code from checkers.py found at 
+http://itgirl.dreamhosters.com/itgirlgames/games/Program%20Leaders/ClareR/Checkers/checkers.py starting on line 159 of my program.
+
+This is the final version of my checkers project for Programming Workshop at Marlboro College. The entire thing has been rafactored and made almost completely object oriented.
+
+Funcitonalities include:
+
+- Having the pieces and board drawn to the screen
+
+- The ability to move pieces by clicking on the piece you want to move, then clicking on the square you would
+  like to move to. You can change you mind about the piece you would like to move, just click on a new piece of yours.
+
+- Knowledge of what moves are legal. When moving pieces, you'll be limited to legal moves.
+
+- Capturing
+
+- DOUBLE capturing etc.
+
+- Legal move and captive piece highlighting
+
+- Turn changes
+
+- Automatic kinging and the ability for them to move backwords
+
+- Automatic check for and end game. 
+
+- A silky smoooth 60 FPS!
+
+Everest Witman - May 2014 - Marlboro College - Programming Workshop 
+"""
+
+import pygame
+import sys
+from pygame.locals import *
+import mouse
+import random
+import os
 import gym
+from gym import spaces
 
-# Maybe we'll need these modules:
-#from gym import spaces, error, utils
-#from gym.utils import seeding
+# get path to resources folder
+path = os.path.dirname(os.path.realpath(__file__)) + "/resources/"
 
+pygame.font.init()
 
-class checkersEnv(gym.Env):
-    '''
-    A checkers board, with -1 for the white player and 1 for the black player
-    Default player is 1 (black)
-    '''
+##COLORS##
+#             R    G    B
+WHITE = (255, 255, 255)
+BLUE = (0,   0, 255)
+RED = (255,   0,   0)
+BLACK = (0,   0,   0)
+GOLD = (255, 215,   0)
+HIGH = (160, 190, 255)
 
-    def __init__(self, print_debug=True):
-        self.board = None
-        self.kings = None
-        self.print_debug = print_debug
-        self.reset()
+##DIRECTIONS##
+NORTHWEST = "northwest"
+NORTHEAST = "northeast"
+SOUTHWEST = "southwest"
+SOUTHEAST = "southeast"
+
+class Game:
+    """
+    The main game control. 
+    """
+    
+    def __init__(self):
+        self.graphics = Graphics()
+        self.board = Board()
+        self.TurnTaken = False
+        self.Selected = False
+        self.turn = BLUE
+        self.selected_piece = None  # a board location.
+        self.hop = False
+        self.selected_legal_moves = []
+        self.randidx = 0
+        self.Turn = 1 #1 = player 1 (Blue) | 2 = player 2 (Red)
+    def setup(self):
+        """Draws the window and board at the beginning of the game"""
+        self.graphics.setup_window()
+
+    def event_loop(self):
+        """
+        The event loop. This is where events are triggered 
+        (like a mouse click) and then effect the game state.
+        """
+        #self.mouse_pos = self.graphics.board_coords(
+        #    pygame.mouse.get_pos())  # what square is the mouse in?
+        self.AllPossibleMoves() # get all possible moves from
+        move = self.BadAI() # Random selection
+        self.InputToMove(move)
+        self.TurnTracker() # Does next turn
+        #self.SlightlyBetterAI()
+        
+        #print(self.mouse_pos)
         
 
-    def reset(self):
+        if self.selected_piece != None:
+            self.selected_legal_moves = self.board.legal_moves(
+                self.selected_piece, self.hop)
 
-        # Init board and set player positions
+        for event in pygame.event.get():
 
-        tmp_board = np.zeros([3, 8])
-        for q in range(0, 3):
-            p = [[0, 0], [0, 2], [0, 4], [0, 6], [1, 1], [1, 3], [1, 5], [1, 7]]
-            for j in p:
-                tmp_board[j[0], j[1]] = 1
+            if event.type == QUIT:
+                self.terminate_game()
 
-        self.board = np.vstack([
-            tmp_board[1, :],
-            tmp_board[0, :],
-            tmp_board[1, :],
-            tmp_board[2, :],
-            tmp_board[2, :] * -1,
-            tmp_board[0, :] * -1,
-            tmp_board[1, :] * -1,
-            tmp_board[0, :] * -1,
-        ])
+        if 1==1:
+            if self.hop == False:
+                if self.board.location(self.mouse_pos).occupant != None and self.board.location(self.mouse_pos).occupant.color == self.turn:
+                    self.selected_piece = self.mouse_pos
 
-        # fix 'negative zero'
-        for i in range(0, 8):
-            for j in range(0, 8):
-                if self.board[i, j] == 0:
-                    self.board[i, j] = 0
+                elif self.selected_piece != None and self.mouse_pos in self.board.legal_moves(self.selected_piece):
 
-        # Print board
-        if self.print_debug:
-            print("Init board")
-            print(self.board)
+                    self.board.move_piece(
+                        self.selected_piece, self.mouse_pos)
 
-    def get_my_orientation(self, player):
-        # Returns the right orientation for the player
-        if player == -1:
-            return self.board
-        return np.flipud(self.board)
+                    if self.mouse_pos not in self.board.adjacent(self.selected_piece):
+                        self.board.remove_piece(
+                            ((self.selected_piece[0] + self.mouse_pos[0]) >> 1, (self.selected_piece[1] + self.mouse_pos[1]) >> 1))
 
-    def is_capturing_move(self, player, original_position, new_position, direction_left_right, direction_up_down):
-        '''
-        Detect if this move is a capturing move
-        Returns list [new_location, to_remove_location]
-        '''
-        if not (-1 < new_position[0] < 8):
-            return False
-        if not (-1 < new_position[1] < 8):
-            return False
+                        self.hop = True
+                        self.selected_piece = self.mouse_pos
 
-        # check if the opponent is on the new position
-        if self.board[new_position[0], new_position[1]] != player * -1:
-            return False
-        capturing_new_position = [new_position[0] + direction_up_down, new_position[1] + direction_left_right]
+                    else:
+                        self.end_turn()
 
-        # check if capturing_new_position is possible
-        if not (-1 < capturing_new_position[0] < 8):
-            return False
-        if not (-1 < capturing_new_position[1] < 8):
-            return False
+            if self.hop == True:
+                if self.selected_piece != None and self.mouse_pos in self.board.legal_moves(self.selected_piece, self.hop):
+                    self.board.move_piece(
+                        self.selected_piece, self.mouse_pos)
+                    self.board.remove_piece(
+                        ((self.selected_piece[0] + self.mouse_pos[0]) >> 1, (self.selected_piece[1] + self.mouse_pos[1]) >> 1))
 
-        if self.board[capturing_new_position[0], capturing_new_position[1]] == 0:
-            # return new position + the to-delete node
-            return [capturing_new_position, new_position]
+                if self.board.legal_moves(self.mouse_pos, self.hop) == []:
+                    self.end_turn()
 
-        return False
-
-    def get_required_move(self, player, skip_rotate=False):
-
-        '''
-        Find if there is a 'required move'
-        '''
-
-        # rotate grid for this player
-        if player == 1 and not skip_rotate:
-            self.board = np.flipud(self.board)
-
-        required_moves = []  # list with required pawns
-
-        my_pawns = np.where(self.board == player)
-        for i in range(0, len(my_pawns[0])):
-            pawn_loc = [my_pawns[0][i], my_pawns[1][i]]
-            # if pawn_loc in self.kings:
-            # TODO: force backwards
-            direction_up_down = -1
-            if self.is_capturing_move(player, pawn_loc, [pawn_loc[0] - 1, pawn_loc[1] - 1], -1, direction_up_down):
-                required_moves.append([pawn_loc, [pawn_loc[0] - 1, pawn_loc[1] - 1]])
-
-            if self.is_capturing_move(player, pawn_loc, [pawn_loc[0] + 1, pawn_loc[1] - 1], 1, direction_up_down):
-                required_moves.append([pawn_loc, [pawn_loc[0] + 1, pawn_loc[1] - 1]])
-
-        # revert rotation
-        if player == 1 and not skip_rotate:
-            self.board = np.flipud(self.board)
-
-        return required_moves
-
-    def fix_board_before_returning_false(self, player):
-        if player == 1:
-            self.board = np.flipud(self.board)
-
-    def get_score(self, player):
-
-        # Calculates score for player
-        scores = {}
-        for i in range(-1, 2, 2):
-            scores[i] = 0
-            my_pawns = np.where(self.board == player)
-            for i in range(0, len(my_pawns[0])):
-                if [my_pawns[0][i], my_pawns[1][i]] in self.kings:
-                    scores[i] += 2  # king score
                 else:
-                    scores[i] += 1  # normal player score
+                    self.selected_piece = self.mouse_pos
+        
+            
+    def update(self): # Display Update
+        """Calls on the graphics class to update the game display."""
+        self.graphics.update_display(
+            self.board, self.selected_legal_moves, self.selected_piece)
 
-        if player == 1:
-            return scores[1] - scores[-1]
-        return scores[-1] - scores[1]
+    def terminate_game(self): # Quit instead of error
+        """Quits the program and ends the game."""
+        pygame.quit()
+        sys.exit
 
-    def step(self, player, original_position, direction_left_right, direction_up_down):
+    def main(self): # Main setup stuff
+        """"This executes the game and controls its flow."""
+        self.setup()
 
-        '''
-        Move a pawn
-        - player: int  (-1 or 1)
-        - original_position : list [x,y]
-        - direction_left_right: int -1 for left, 1 for right
-        - direction_up_down: int -1 for up, 1 for down
-        '''
+        while True:  # main game loop
+            self.update()
+            self.event_loop()
+            self.update()
+            
 
-        score_before_step = self.get_score(player)
+    def end_turn(self): # Ends turn
+        """
+        End the turn. Switches the current player. 
+        end_turn() also checks for and game and resets a lot of class attributes.
+        """
+        if self.turn == BLUE:
+            self.turn = RED
+        else:
+            self.turn = BLUE
 
-        # mirror board for player 1
-        if player == 1:
-            self.board = np.flipud(self.board)
+        self.selected_piece = None
+        self.selected_legal_moves = []
+        self.hop = False
 
-        new_position = [original_position[0] + direction_up_down, original_position[1] + direction_left_right]
+        if self.check_for_endgame():
+            if self.turn == BLUE:
+                self.graphics.draw_message("RED WINS!")
+            else:
+                self.graphics.draw_message("BLUE WINS!")
+    
 
-        # Move a pawn from _from to _to
-        if self.print_debug:
-            print("--Move ", original_position, "left" if direction_left_right == -1 else "right",
-                  "up" if direction_up_down == -1 else "down", " to ", new_position)
+    def check_for_endgame(self): # Check for winner
+        """
+        Checks to see if a player has run out of moves or pieces. If so, then return True. Else return False.
+        """
+        for x in range(8):
+            for y in range(8):
+                if self.board.location((x, y)).color == BLACK and self.board.location((x, y)).occupant != None and self.board.location((x, y)).occupant.color == self.turn:
+                    if self.board.legal_moves((x, y)) != []:
+                        return False
 
-        # DO VARIOUS CHECKS
-        # - check if the original_position is on the board
-        if original_position[0] < 0 or original_position[1] < 0 or original_position[0] > 7 or original_position[1] > 7:
-            if self.print_debug:
-                print("Original position is not on this board")
-            self.fix_board_before_returning_false(player)
+        return True
+    
+    
+    def BadAI(self):
+        "THIS FUNCTION IS REWORKED TO USE THE AllPossibleMoves FUNCTION "
+        if self.Selected!=True:
+            if self.Turn == 1:
+                randidx = random.randint(0,len(self.BlueMoves)-1)
+                self.MyMove = self.BlueMoves[randidx]
+            else:
+                randidx = random.randint(0,len(self.RedMoves)-1)
+                self.MyMove = self.RedMoves[randidx]
+        return self.MyMove
+        
+        
+        
+        """RedChips = []
+        BlueChips = []
+        for x in range(8):
+            for y in range(8):
+                if self.board.matrix[x][y].occupant != None:
+                    if self.board.matrix[x][y].occupant.color == (0,0,255):
+                        RedChips.append([x,y])
+                    if self.board.matrix[x][y].occupant.color == (255,0,0):
+                        BlueChips.append([x,y])
+        
+        
+        if self.Turn ==  1: 
+            if BlueChips:
+                randidx = random.randint(0,len(BlueChips)-1)
+                self.FirstChoice = BlueChips[randidx]
+                print("Blues Turn")
+                self.Turn = 2
+            else:
+                print("No Blue Chips Left")
+        else:
+            if RedChips:
+                randidx = random.randint(0,len(RedChips)-1)
+                self.FirstChoice = RedChips[randidx]
+                self.Turn = 1
+                print("Reds Turn")
+            else:
+                print("No Red Chips Left")
+        
+        
+        print("First Choice = ", self.FirstChoice)
+        self.mouse_pos = tuple(self.FirstChoice)"""
+        
+    def SlightlyBetterAI(self): # Depreciated
+        "THIS FUNCTION IS RETIRED :)"
+        
+        """
+        if self.selected_piece != None:
+            self.ApplicableMoves = self.board.legal_moves(self.selected_piece)
+            #print(self.board.legal_moves(self.selected_piece))
+            if self.ApplicableMoves != []:
+                randidx = random.randint(0,len(self.ApplicableMoves)-1)
+                self.SecondChoice = self.ApplicableMoves[randidx]
+                self.mouse_pos = tuple(self.SecondChoice)
+                print("-Second Choice = ", self.SecondChoice)
+            else:
+                print("--No Moves were applicable Choose again.")
+        """
+
+    def AllPossibleMoves(self):
+        "This Function will print out all possible move the player can take"
+        "It will use a [[x,y],[x,y]] format"
+        RedChips = []
+        BlueChips = []
+        for x in range(8):
+            for y in range(8):
+                if self.board.matrix[x][y].occupant != None:
+                    if self.board.matrix[x][y].occupant.color == (0,0,255):
+                        RedChips.append([x,y])
+                    if self.board.matrix[x][y].occupant.color == (255,0,0):
+                        BlueChips.append([x,y])
+        self.RedMoves = []
+        self.BlueMoves = []
+        if self.Turn == 1:
+            for x in range(len(BlueChips)):
+                self.MakeableMoves = list(self.board.legal_moves(BlueChips[x]))
+                if self.MakeableMoves != []:
+                    for y in range(len(self.MakeableMoves)):
+    
+                        self.BlueMoves.append([BlueChips[x],list(self.MakeableMoves[y])])
+            print("ALL POSSIBLE MOVES FOR BLUE:\n",self.BlueMoves) # debug print
+        else:
+            for x in range(len(RedChips)):
+                self.MakeableMoves = list(self.board.legal_moves(RedChips[x]))
+                if self.MakeableMoves != []:
+                    for y in range(len(self.MakeableMoves)):
+                        self.RedMoves.append([RedChips[x],list(self.MakeableMoves[y])])
+            print("ALL POSSIBLE MOVES FOR RED:\n",self.RedMoves) # debug print
+            
+    def InputToMove(self,InputFromAI): # frame movement
+        print("INPUT:",InputFromAI)
+        if self.Selected!=True:
+            self.mouse_pos = tuple(InputFromAI[0])
+            self.Selected=True
+        else:
+            self.mouse_pos = tuple(InputFromAI[1] )
+            self.Selected=False
+            self.TurnTaken = True
+        
+    def TurnTracker(self):
+        if self.Turn == 1 and self.TurnTaken:
+            self.Turn = 2
+            self.TurnTaken = False
+        elif self.Turn == 2 and self.TurnTaken:
+            self.Turn = 1
+            self.TurnTaken = False
+
+class Graphics:
+    def __init__(self):
+        self.caption = "Checkers"
+
+        self.fps = 60
+        self.clock = pygame.time.Clock()
+
+        self.window_size = 600
+        self.screen = pygame.display.set_mode(
+            (self.window_size, self.window_size))
+        self.background = pygame.image.load(path+'/board.png')
+
+        self.square_size = self.window_size >> 3
+        self.piece_size = self.square_size >> 1
+
+        self.message = False
+
+    def setup_window(self):
+        """
+        This initializes the window and sets the caption at the top.
+        """
+        pygame.init()
+        pygame.display.set_caption(self.caption)
+
+    def update_display(self, board, legal_moves, selected_piece):
+        """
+        This updates the current display.
+        """
+        self.screen.blit(self.background, (0, 0))
+
+        self.highlight_squares(legal_moves, selected_piece)
+        self.draw_board_pieces(board)
+
+        if self.message:
+            self.screen.blit(self.text_surface_obj, self.text_rect_obj)
+
+        pygame.display.update()
+        self.clock.tick(self.fps)
+
+    def draw_board_squares(self, board):
+        """
+        Takes a board object and draws all of its squares to the display
+        """
+        for x in range(8):
+            for y in range(8):
+                pygame.draw.rect(self.screen, board[x][y].color, (
+                    x * self.square_size, y * self.square_size, self.square_size, self.square_size), )
+
+    def draw_board_pieces(self, board):
+        """
+        Takes a board object and draws all of its pieces to the display
+        """
+        for x in range(8):
+            for y in range(8):
+                if board.matrix[x][y].occupant != None:
+                    pygame.draw.circle(self.screen, board.matrix[x][y].occupant.color, self.pixel_coords(
+                        (x, y)), self.piece_size)
+
+                    if board.location((x, y)).occupant.king == True:
+                        pygame.draw.circle(self.screen, GOLD, self.pixel_coords(
+                            (x, y)), int(self.piece_size / 1.7), self.piece_size >> 2)
+
+    def pixel_coords(self, board_coords):
+        """
+        Takes in a tuple of board coordinates (x,y) 
+        and returns the pixel coordinates of the center of the square at that location.
+        """
+        return (board_coords[0] * self.square_size + self.piece_size, board_coords[1] * self.square_size + self.piece_size)
+
+    def board_coords(self, pixel):
+        """
+        Does the reverse of pixel_coords(). Takes in a tuple of of pixel coordinates and returns what square they are in.
+        """
+        return (pixel[0] // self.square_size, pixel[1] // self.square_size)
+
+    def highlight_squares(self, squares, origin):
+        """
+        Squares is a list of board coordinates. 
+        highlight_squares highlights them.
+        """
+        for square in squares:
+            pygame.draw.rect(self.screen, HIGH, (square[0] * self.square_size,
+                             square[1] * self.square_size, self.square_size, self.square_size))
+
+        if origin != None:
+            pygame.draw.rect(self.screen, HIGH, (origin[0] * self.square_size,
+                             origin[1] * self.square_size, self.square_size, self.square_size))
+
+    def draw_message(self, message):
+        """
+        Draws message to the screen. 
+        """
+        self.message = True
+        self.font_obj = pygame.font.Font('freesansbold.ttf', 44)
+        self.text_surface_obj = self.font_obj.render(
+            message, True, HIGH, BLACK)
+        self.text_rect_obj = self.text_surface_obj.get_rect()
+        self.text_rect_obj.center = (
+            self.window_size >> 1, self.window_size >> 1)
+
+
+class Board:
+    def __init__(self):
+        self.matrix = self.new_board()
+
+    def new_board(self):
+        """
+        Create a new board matrix.
+        """
+
+        # initialize squares and place them in matrix
+
+        matrix = [[None] * 8 for i in range(8)]
+
+        # The following code block has been adapted from
+        # http://itgirl.dreamhosters.com/itgirlgames/games/Program%20Leaders/ClareR/Checkers/checkers.py
+        for x in range(8):
+            for y in range(8):
+                if (x % 2 != 0) and (y % 2 == 0):
+                    matrix[y][x] = Square(WHITE)
+                elif (x % 2 != 0) and (y % 2 != 0):
+                    matrix[y][x] = Square(BLACK)
+                elif (x % 2 == 0) and (y % 2 != 0):
+                    matrix[y][x] = Square(WHITE)
+                elif (x % 2 == 0) and (y % 2 == 0):
+                    matrix[y][x] = Square(BLACK)
+
+        # initialize the pieces and put them in the appropriate squares
+
+        for x in range(8):
+            for y in range(3):
+                if matrix[x][y].color == BLACK:
+                    matrix[x][y].occupant = Piece(RED)
+            for y in range(5, 8):
+                if matrix[x][y].color == BLACK:
+                    matrix[x][y].occupant = Piece(BLUE)
+
+        print(matrix)
+        
+        return matrix
+
+    def board_string(self, board):
+        """
+        Takes a board and returns a matrix of the board space colors. Used for testing new_board()
+        """
+
+        board_string = [[None] * 8] * 8
+
+        for x in range(8):
+            for y in range(8):
+                if board[x][y].color == WHITE:
+                    board_string[x][y] = "WHITE"
+                else:
+                    board_string[x][y] = "BLACK"
+
+        return board_string
+
+    def rel(self, dir, pixel):
+        """
+        Returns the coordinates one square in a different direction to (x,y).
+
+        ===DOCTESTS===
+
+        >>> board = Board()
+
+        >>> board.rel(NORTHWEST, (1,2))
+        (0,1)
+
+        >>> board.rel(SOUTHEAST, (3,4))
+        (4,5)
+
+        >>> board.rel(NORTHEAST, (3,6))
+        (4,5)
+
+        >>> board.rel(SOUTHWEST, (2,5))
+        (1,6)
+        """
+        x = pixel[0]
+        y = pixel[1]
+        if dir == NORTHWEST:
+            return (x - 1, y - 1)
+        elif dir == NORTHEAST:
+            return (x + 1, y - 1)
+        elif dir == SOUTHWEST:
+            return (x - 1, y + 1)
+        elif dir == SOUTHEAST:
+            return (x + 1, y + 1)
+        else:
+            return 0
+
+    def adjacent(self, pixel):
+        """
+        Returns a list of squares locations that are adjacent (on a diagonal) to (x,y).
+        """
+        x = pixel[0]
+        y = pixel[1]
+
+        return [self.rel(NORTHWEST, (x, y)), self.rel(NORTHEAST, (x, y)), self.rel(SOUTHWEST, (x, y)), self.rel(SOUTHEAST, (x, y))]
+
+    def location(self, pixel):
+        """
+        Takes a set of coordinates as arguments and returns self.matrix[x][y]
+        This can be faster than writing something like self.matrix[coords[0]][coords[1]]
+        """
+        x = pixel[0]
+        y = pixel[1]
+
+        return self.matrix[x][y]
+
+    def blind_legal_moves(self, pixel):
+        """
+        Returns a list of blind legal move locations from a set of coordinates (x,y) on the board. 
+        If that location is empty, then blind_legal_moves() return an empty list.
+        """
+
+        x = pixel[0]
+        y = pixel[1]
+        if self.matrix[x][y].occupant != None:
+
+            if self.matrix[x][y].occupant.king == False and self.matrix[x][y].occupant.color == BLUE:
+                blind_legal_moves = [
+                    self.rel(NORTHWEST, (x, y)), self.rel(NORTHEAST, (x, y))]
+
+            elif self.matrix[x][y].occupant.king == False and self.matrix[x][y].occupant.color == RED:
+                blind_legal_moves = [
+                    self.rel(SOUTHWEST, (x, y)), self.rel(SOUTHEAST, (x, y))]
+
+            else:
+                blind_legal_moves = [self.rel(NORTHWEST, (x, y)), self.rel(
+                    NORTHEAST, (x, y)), self.rel(SOUTHWEST, (x, y)), self.rel(SOUTHEAST, (x, y))]
+
+        else:
+            blind_legal_moves = []
+
+        return blind_legal_moves
+
+    def legal_moves(self, pixel, hop=False):
+        """
+        Returns a list of legal move locations from a given set of coordinates (x,y) on the board.
+        If that location is empty, then legal_moves() returns an empty list.
+        """
+
+        x = pixel[0]
+        y = pixel[1]
+        blind_legal_moves = self.blind_legal_moves((x, y))
+        legal_moves = []
+
+        if hop == False:
+            for move in blind_legal_moves:
+                if hop == False:
+                    if self.on_board(move):
+                        if self.location(move).occupant == None:
+                            legal_moves.append(move)
+
+                        # is this location filled by an enemy piece?
+                        elif self.location(move).occupant.color != self.location((x, y)).occupant.color and self.on_board((move[0] + (move[0] - x), move[1] + (move[1] - y))) and self.location((move[0] + (move[0] - x), move[1] + (move[1] - y))).occupant == None:
+                            legal_moves.append(
+                                (move[0] + (move[0] - x), move[1] + (move[1] - y)))
+
+        else:  # hop == True
+            for move in blind_legal_moves:
+                if self.on_board(move) and self.location(move).occupant != None:
+                    # is this location filled by an enemy piece?
+                    if self.location(move).occupant.color != self.location((x, y)).occupant.color and self.on_board((move[0] + (move[0] - x), move[1] + (move[1] - y))) and self.location((move[0] + (move[0] - x), move[1] + (move[1] - y))).occupant == None:
+                        legal_moves.append(
+                            (move[0] + (move[0] - x), move[1] + (move[1] - y)))
+
+        return legal_moves
+
+    def remove_piece(self, pixel):
+        """
+        Removes a piece from the board at position (x,y). 
+        """
+        x = pixel[0]
+        y = pixel[1]
+        self.matrix[x][y].occupant = None
+
+    def move_piece(self, pixel_start, pixel_end):
+        """
+        Move a piece from (start_x, start_y) to (end_x, end_y).
+        """
+        start_x = pixel_start[0]
+        start_y = pixel_start[1]
+        end_x = pixel_end[0]
+        end_y = pixel_end[1]
+
+        self.matrix[end_x][end_y].occupant = self.matrix[start_x][start_y].occupant
+        self.remove_piece((start_x, start_y))
+
+        self.king((end_x, end_y))
+        
+
+    def is_end_square(self, coords):
+        """
+        Is passed a coordinate tuple (x,y), and returns true or 
+        false depending on if that square on the board is an end square.
+
+        ===DOCTESTS===
+
+        >>> board = Board()
+
+        >>> board.is_end_square((2,7))
+        True
+
+        >>> board.is_end_square((5,0))
+        True
+
+        >>>board.is_end_square((0,5))
+        False
+        """
+
+        if coords[1] == 0 or coords[1] == 7:
+            return True
+        else:
             return False
-        # - check new location
-        if not (-1 < new_position[1] < 8):
-            if self.print_debug:
-                print("New position is not on this board (left/right)")
-            self.fix_board_before_returning_false(player)
+
+    def on_board(self, pixel):
+        """
+        Checks to see if the given square (x,y) lies on the board.
+        If it does, then on_board() return True. Otherwise it returns false.
+
+        ===DOCTESTS===
+        >>> board = Board()
+
+        >>> board.on_board((5,0)):
+        True
+
+        >>> board.on_board(-2, 0):
+        False
+
+        >>> board.on_board(3, 9):
+        False
+        """
+
+        x = pixel[0]
+        y = pixel[1]
+        if x < 0 or y < 0 or x > 7 or y > 7:
             return False
-        if not (-1 < new_position[0] < 8):
-            if self.print_debug:
-                print("New position is not on this board (up/down)")
-            self.fix_board_before_returning_false(player)
-            return False
+        else:
+            return True
 
-        # - check, when this is a downwards move, if the pawn is a king
-        if direction_up_down == 1 and original_position not in self.kings:
-            if self.print_debug:
-                print("Downwards move but not king")
-            self.fix_board_before_returning_false(player)
-            return False
+    def king(self, pixel):
+        """
+        Takes in (x,y), the coordinates of square to be considered for kinging.
+        If it meets the criteria, then king() kings the piece in that square and kings it.
+        """
+        x = pixel[0]
+        y = pixel[1]
+        if self.location((x, y)).occupant != None:
+            if (self.location((x, y)).occupant.color == BLUE and y == 0) or (self.location((x, y)).occupant.color == RED and y == 7):
+                self.location((x, y)).occupant.king = True
 
-        # - check if is own pawn:
-        if self.board[original_position[0], original_position[1]] != player:
-            if self.print_debug:
-                print("Not moving your own pawn")
-            self.fix_board_before_returning_false(player)
-            return False
 
-        # - check capturing
-        capturing = self.is_capturing_move(player, original_position, new_position, direction_left_right,
-                                           direction_up_down)
+class Piece:
+    def __init__(self, color, king=False):
+        self.color = color
+        self.king = king
 
-        if capturing != False:
-            self.board[capturing[1][0], capturing[1][1]] = 0
-            if capturing[1] in self.kings:
-                # remove from kings list
-                self.kings.remove(capturing[1])
-            new_position = capturing[0]
-            if self.print_debug:
-                print("-- IS CAPTURING MOVE!!")
 
-        # - check if spot is on-occupied
-        if self.board[new_position[0], new_position[1]] != 0:
-            if self.print_debug:
-                print("Not a empty spot")
-            self.fix_board_before_returning_false(player)
-            return False
+class Square:
+    def __init__(self, color, occupant=None):
+        self.color = color  # color is either BLACK or WHITE
+        self.occupant = occupant  # occupant is a Square object
 
-        # - check if required moves, and if this move applies
-        rms = self.get_required_move(player, skip_rotate=True)
+class CheckersEnv(gym.Env):
 
-        if len(rms) > 0:
-            if [original_position, new_position] not in rms:
-                if self.print_debug:
-                    print("You have a required set", rms)
-                self.fix_board_before_returning_false(player)
-                return False
+    # 
+    # UPDATE THE STEP FUNCTION 
+    #
+    def __init__(self):
+        super().__init__()
+        self.game = Game()
+        # Define the action space as the maximum possible number of actions
+        self.action_space = spaces.Discrete(64*64)
+        self.observation_space = spaces.Box(low=-1, high=1, shape=(8, 8), dtype=np.int)
 
-        # -- (done with checks)
+    def step(self, action):
+        # Convert the action from an integer to a move
+        start = (action // 64, action % 64)
+        end = ((action // 64) + 1, (action % 64) + 1)
+        move = [start, end]
 
-        # Update king list
-        if new_position[0] == 0:
-            if self.print_debug:
-                print("Found a king")
-            self.kings.append(new_position)
+        # Check if the move is valid
+        if move in Game.AllPossibleMoves():
+            # If the move is valid, make the move and return the new state, reward, done, and info
+            self.game.make_move(move)
+            state = self.game.get_state()
+            reward = self.game.get_reward()
+            done = self.game.is_done()
+            info = {}
+            return state, reward, done, info
+        else:
+            # If the move is not valid, return a negative reward
+            return self.game.get_state(), -1, False, {}
+         
+    def reset(self):
+        print("hi")
+        # Reset the game and return the initial state
 
-        if original_position in self.kings:
-            self.kings.remove(original_position)
-            if new_position[0] != 0:
-                self.kings.append(new_position)
+    def render(self, mode='human'):
+        print("hi")
+        # Implement rendering of the game state
 
-        self.board[original_position[0], original_position[1]] = 0
-        self.board[new_position[0], new_position[1]] = player
+def main():
+    game = Game()
+    game.main()
 
-        # re-do board mirroring
-        if player == 1:
-            self.board = np.flipud(self.board)
+if __name__ == "__main__":
+    main()
+    main()
+    main()
 
-        if self.print_debug:
-            print("-- Did move player ", player, " ", original_position,
-                  "left" if direction_left_right == -1 else "right", "up" if direction_up_down == -1 else "down",
-                  " to ", new_position)
-            print(self.board)
-
-        ## - step done
-        if np.sum(np.abs(self.board)) == 0:
-            self.done == True
-
-        score_after_step = self.get_score(player)
-        ## --return reward: score_after_step - score_before_step
-        return score_after_step - score_before_step
-
-    def get_score(self):
-        '''
-        Return list (score -1 , score 1)
-        '''
-        return [
-            len(np.where(self.board == -1)[0]),
-            len(np.where(self.board == 1)[0])
-        ]
-
-    def render(self):
-        '''
-        Prints the board
-        '''
-        print(self.board)
-
-    def get_possible_actions(self, player, skip_rotate=False):
-        '''
-        Returns all possible actions in the format [position of pawn, new position]
-        '''
-
-        if player == 1 and not skip_rotate:
-            self.board = np.flipud(self.board)
-
-        # check if there are mandatory actions
-        required_moves = self.get_required_move()
-        if len(required_moves) != 0:
-            if player == 1 and not skip_rotate:
-                self.board = np.flipud(self.board)
-
-            return required_moves
-
-        # no mandatory actions, find all possible actions for this player
-        possible_moves = []
-        my_pawns = np.where(self.board == player)
-        for i in range(0, len(my_pawns[0])):
-            my_pawn = [my_pawns[0][i], my_pawns[1][i]]
-            # add steps to possible moves
-            possible_moves.append([my_pawn,  [my_pawn[0]-1, my_pawn[0]-1]])
-            possible_moves.append([my_pawn, [my_pawn[0] - 1, my_pawn[0] + 1]])
-            if [my_pawns[0][i], my_pawns[1][i]] in self.kings:
-                # add backwards steps
-                possible_moves.append([my_pawn, [my_pawn[0] + 1, my_pawn[0] - 1]])
-                possible_moves.append([my_pawn, [my_pawn[0] + 1, my_pawn[0] + 1]])
-
-        if player == 1 and not skip_rotate:
-            self.board = np.flipud(self.board)
-
-        return possible_moves
