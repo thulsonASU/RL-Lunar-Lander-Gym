@@ -44,6 +44,7 @@ import random
 import os
 import gym
 from gym import spaces
+import numpy as np
 
 # get path to resources folder
 path = os.path.dirname(os.path.realpath(__file__)) + "/resources/"
@@ -298,6 +299,22 @@ class Game:
             self.mouse_pos = tuple(InputFromAI[1] )
             self.Selected=False
             self.TurnTaken = True
+            
+    # CUSTOM REWARD FUNCTION #
+    def get_reward(self):
+        # Initialize the reward to 0
+        reward = 0
+
+        # Reward the agent for having more pieces than the opponent
+        reward += len(self.game.get_pieces(self.game.turn))
+        reward -= len(self.game.get_pieces(1 - self.game.turn))
+
+        # Reward the agent for having more king pieces than the opponent
+        reward += len([piece for piece in self.game.get_pieces(self.game.turn) if piece.king])
+        reward -= len([piece for piece in self.game.get_pieces(1 - self.game.turn) if piece.king])
+
+        # Return the reward
+        return reward
         
     def TurnTracker(self):
         if self.Turn == 1 and self.TurnTaken:
@@ -672,16 +689,15 @@ class Square:
         self.occupant = occupant  # occupant is a Square object
 
 class CheckersEnv(gym.Env):
-
-    # 
+ 
     # UPDATE THE STEP FUNCTION 
-    #
     def __init__(self):
         super().__init__()
         self.game = Game()
+        self.board = Board()
         # Define the action space as the maximum possible number of actions
         self.action_space = spaces.Discrete(64*64)
-        self.observation_space = spaces.Box(low=-1, high=1, shape=(8, 8), dtype=np.int)
+        self.observation_space = spaces.Box(low=-1, high=1, shape=(8, 8), dtype=np.int64)
 
     def step(self, action):
         # Convert the action from an integer to a move
@@ -692,10 +708,10 @@ class CheckersEnv(gym.Env):
         # Check if the move is valid
         if move in Game.AllPossibleMoves():
             # If the move is valid, make the move and return the new state, reward, done, and info
-            self.game.make_move(move)
-            state = self.game.get_state()
-            reward = self.game.get_reward()
-            done = self.game.is_done()
+            Game.InputToMove(move)
+            state = Board.matrix
+            reward = Game.get_reward()
+            done = Game.check_for_endgame()
             info = {}
             return state, reward, done, info
         else:
