@@ -5,10 +5,19 @@ from ray.rllib.algorithms.dqn import DQNConfig
 import os
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+import panda_gym
+from gym.envs.registration import register
+
+# Git must be cloned and installed locally for custom environments to work
+# Assuming that PandaStack-v3 is defined in the file panda_env.py in the class PandaStackEnv
+register(
+    id='PandaStack-v3',
+    entry_point='panda_env:PandaStackEnv',
+)
 
 class trainDQN():
     def __init__(self,env_name="LunarLander-v2"):
-        self.algo = DQNConfig().environment("LunarLander-v2").build()
+        self.algo = DQNConfig().environment(env_name).build()
         self.path = os.path.dirname(os.path.realpath(__file__))
         self.env = gym.make(env_name, render_mode="human")
         self.terminated = self.truncated = False
@@ -59,8 +68,14 @@ class trainDQN():
             
                 
 if __name__ == "__main__":
-    agent = trainDQN()
-    # agent.train()
-    # agent.save()
-    agent.load(checkpoint="checkpoint_000010")
-    agent.play()
+    # available envs
+    # https://github.com/qgallouedec/panda-gym/
+    # https://gymnasium.farama.org/environments/classic_control/
+    # env_name = "PandaStack-v3"
+    
+    agent = trainDQN(env_name="PandaStack-v3")
+    agent.train()
+    agent.save()
+    
+    # agent.load(checkpoint="checkpoint_000010")
+    # agent.play()
