@@ -19,9 +19,11 @@ attrs==22.2.0
     # via
     #   jsonschema
     #   ray
-swig
+swig==4.1.1
+    # via gymnasium
     # for box2d-py
     # needed for me (Ubuntu 22.04)
+    # Put higher in load order for box2d-py
 box2d-py==2.3.5
     # via gymnasium
 cachetools==5.3.0
@@ -226,8 +228,6 @@ six==1.16.0
     #   google-pasta
     #   python-dateutil
     #   tensorflow
-swig==4.1.1
-    # via gymnasium
 tabulate==0.9.0
     # via ray
 tensorboard==2.12.0
