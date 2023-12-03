@@ -1,5 +1,6 @@
 import gymnasium as gym
 from ray.rllib.algorithms.dqn import DQNConfig
+import ray
 import os
 import csv
 import collections
@@ -8,6 +9,13 @@ import matplotlib.pyplot as plt
 import matplotlib
 import imageio
 from PIL import Image
+# gifsicle is a command-line tool for creating, editing, and getting information about GIF images and animations.
+# pygifsicle is a Python wrapper around gifsicle.
+# Using it for compressing the gifs
+# pip install pygifsicle
+from pygifsicle import optimize
+import subprocess # Check if gifsicle is installed
+
 
 class trainDQN():
     def __init__(self,env_name="LunarLander-v2"):
@@ -18,6 +26,19 @@ class trainDQN():
         self.terminated = self.truncated = False
         self.observations, self.info = self.env.reset()
         self.firstRow = True
+        
+        # reinitailize the images folder
+        # Define the directories
+        self.plot_dir = self.path + '/images/plots'
+        self.env_dir = self.path + '/images/env'
+        
+        # Delete all files in the plot directory
+        for filename in os.listdir(self.plot_dir):
+            os.remove(os.path.join(self.plot_dir, filename))
+
+        # Delete all files in the env directory
+        for filename in os.listdir(self.env_dir):
+            os.remove(os.path.join(self.env_dir, filename))
             
     def flatten_dict(self,d, parent_key='', sep='_'):
         items = []
@@ -59,6 +80,10 @@ class trainDQN():
     def load(self,checkpoint):
         checkpoint_path = self.path + "/models/" + checkpoint
         self.algo.restore(checkpoint_path)
+    
+    def close(self):
+        # Close the Ray agent
+        ray.shutdown()
         
     def play(self,iterOut,checkpoint,plotting=False):
         with open(self.path + 'rewards.csv', 'w', newline='') as csvfile:
@@ -72,9 +97,8 @@ class trainDQN():
         # self.env = gym.make(self.env_name)
         self.env.reset()
         print("Rendering environment")
-        print("Attempt:", attempt)
         try:
-            while attempt < iterOut:
+            while attempt <= iterOut:
                 # self.env.render()
                 action = self.algo.compute_single_action(self.observations)
                 self.observations, self.reward, self.terminated, self.truncated, self.info = self.env.step(action)
@@ -88,8 +112,8 @@ class trainDQN():
                 Image.fromarray(img).save(self.path + f'/images/env/env_{step}.png')  
                 
                 if self.terminated or self.truncated:
-                    attempt+=1
                     print("Attempt:", attempt)
+                    attempt+=1
                     self.observations, self.info = self.env.reset()
                 
             ## Create a GIF from the images after the environment has finished running
@@ -101,7 +125,7 @@ class trainDQN():
             
             if plotting:
                 # agent is no longer needed (Do this to save memory while creating plots)
-                agent.close()
+                self.close()
                 print("Plotting Rewards and Observations")
                 matplotlib.use('Agg') # Change backend to a non Tkinter one so it is threading-safe
                 
@@ -116,14 +140,15 @@ class trainDQN():
                     fig, axs = plt.subplots(2, figsize=(10, 12))
 
                     # Plot the rewards on the first subplot
-                    axs[0].plot(rewards[:step+1], color='blue')
-                    axs[0].set_title(f'Rewards up to step {step+1}')
+                    axs[0].plot(rewards[:step+1], color='blue', label='Reward')
+                    axs[0].set_title(f'Checkpoint {checkpoint}, Attempt: {attempts[step]}, Rewards up to step {step+1}')
                     axs[0].set_xlim([0, last_step])  # Set the x-axis range
+                    axs[0].legend()  # Add a legend
 
                     # Plot the observations on the second subplot
                     for i in range(len(labels)):
                         axs[1].plot([obs[i] for obs in observations_list[:step+1]], label=labels[i])
-                    axs[1].set_title(f'Observations up to step {step+1}')
+                    axs[1].set_title(f'Checkpoint {checkpoint}, Attempt: {attempts[step]}, Observations up to step {step+1}')
                     axs[1].set_xlim([0, last_step])  # Set the x-axis range
                     axs[1].legend()  # Add a legend
 
@@ -135,14 +160,7 @@ class trainDQN():
                 image_files = sorted(os.listdir(self.path + '/images/plots'), key=lambda x: int(x.split('_')[1].split('.')[0]))
                 images = [imageio.v3.imread(self.path + f'/images/plots/{image_file}') for image_file in image_files]
                 imageio.mimsave(self.path + '/images/plots.gif', images, fps=30)
-                
-                print("Compressing plot gif")
-                # Open the gif
-                gif = Image.open(self.path + '/images/plots.gif')
-                # Quantize the gif to reduce the number of colors
-                gif = gif.quantize(colors=256)
-                # Save the compressed gif
-                gif.save(self.path + '/images/plots_compressed.gif')
+                self.compress()
             
             # Store rewards
             # Write the rewards to a CSV file
@@ -159,9 +177,25 @@ class trainDQN():
             print("Training interrupted")
             self.env.close()
             pass   
-                    
+    
+    def compress(self):
+        # Check if gifsicle is installed
+        try:
+            subprocess.check_call(['gifsicle', '--version'])
+            gifsicle_installed = True
+        except FileNotFoundError:
+            gifsicle_installed = False
+
+        if gifsicle_installed:
+            # Only if you have gifsicle installed so you can use the wrapper
+            print("Compressing plot gif")
+            optimize(self.path + '/images/plots.gif')
+        else:
+            print("Skipping compression of plot gif as gifsicle is not installed")
+        
+# Class Experimentation            
 if __name__ == "__main__":
-    # available envs
+    # available envs?
     # https://github.com/qgallouedec/panda-gym/
     # https://gymnasium.farama.org/environments/classic_control/
     
@@ -197,14 +231,14 @@ if __name__ == "__main__":
     elif choice == 1:
         agent = trainDQN() # takes some time to init
         # train a model to a set number of iterations/generations
-        agent.train(iters=1000)
+        agent.train(iters=1000) # This will take a few hours to train
         agent.save()
         agent.close()
     elif choice == 2:
         agent = trainDQN() # takes some time to init
         # load the model you want to play
-        checkpoint = "checkpoint_000500"
+        checkpoint = "checkpoint_000430"
         agent.load(checkpoint=checkpoint)
-        agent.play(iterOut=10,checkpoint=checkpoint,plotting=True) # iterOut = how many times do you want the model to run through the environment
+        agent.play(iterOut=6,checkpoint=checkpoint,plotting=True) # iterOut = how many times do you want the model to run through the environment
     else:
         print("Invalid Choice, Choose between 0, 1, or 2")
