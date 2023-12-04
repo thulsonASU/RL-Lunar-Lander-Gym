@@ -237,8 +237,8 @@ if __name__ == "__main__":
     elif choice == 2:
         agent = trainDQN() # takes some time to init
         # load the model you want to play
-        checkpoint = "checkpoint_000430"
+        checkpoint = "checkpoint_000002"
         agent.load(checkpoint=checkpoint)
-        agent.play(iterOut=6,checkpoint=checkpoint,plotting=True) # iterOut = how many times do you want the model to run through the environment
+        agent.play(iterOut=3,checkpoint=checkpoint,plotting=True) # iterOut = how many times do you want the model to run through the environment
     else:
         print("Invalid Choice, Choose between 0, 1, or 2")
