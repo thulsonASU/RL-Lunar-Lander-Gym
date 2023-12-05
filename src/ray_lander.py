@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Sunday, ‎December ‎3, ‎2023, ‏‎09:48:50
+
+@author: thulson, sstrasser
+"""
+
 import gymnasium as gym
 from ray.rllib.algorithms.dqn import DQNConfig
 import ray
@@ -202,7 +209,7 @@ if __name__ == "__main__":
     # 0 for user_mode
     # 1 to train
     # 2 to play
-    choice = 2
+    choice = 0
     
     if choice == 0:
         # init agent
