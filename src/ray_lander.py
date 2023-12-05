@@ -202,7 +202,7 @@ if __name__ == "__main__":
     # 0 for user_mode
     # 1 to train
     # 2 to play
-    choice = 2
+    choice = 0
     
     if choice == 0:
         # init agent
