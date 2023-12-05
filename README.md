@@ -1,10 +1,8 @@
+### Installing Dependencies
 
-
-### Installing Dependancies
-
-Proven to work on Ubuntu 22.04 LTS. Create a .venv for installing python libraries without bricking current python install. This might not work with Windows machines.
+Proven to work on Ubuntu 22.04 LTS. Create a .venv for installing Python libraries without bricking the current Python install. This might not work with Windows machines.
 ```sh
-# I used the built in scripts with visual studio to create my venv (You can use whatever suits your needs)
+# We used the built-in scripts with Visual Studio to create Venv (You can use whatever suits your needs)
 python -m virtualenv venv
 # source is used for bash
 source .venv/bin/activate
