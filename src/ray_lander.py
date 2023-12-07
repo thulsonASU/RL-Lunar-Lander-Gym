@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Sunday, ‎December ‎3, ‎2023, ‏‎09:48:50
+
+@author: thulson, sstrasser
+"""
+
 import gymnasium as gym
 from ray.rllib.algorithms.dqn import DQNConfig
 import ray
