@@ -68,11 +68,11 @@ J.-H. Park, K. Farkhodov, S.-H. Lee, and K.-R. Kwon, "Deep Reinforcement Learnin
 
 
 ## Primary Maintainers
-[Tyler Hulson](https://github.com/thulsonASU) <br/>
+[Tyler Hulson](https://github.com/thulsonASU) - [Email](thulson@asu.edu)
 [Samir Strasser](https://github.com/samir-strasser)
 ## Contributors
-[Zane Reynolds](https://github.com/zdreynol)<br/>
-[Sai Srinivas Tatwik Meesala](https://github.com/Tatwik19)<br/>
+[Zane Reynolds](https://github.com/zdreynol)
+[Sai Srinivas Tatwik Meesala](https://github.com/Tatwik19)
 [Keshav Anand Kabra](https://github.com/keshavkabra1521)
 
 
