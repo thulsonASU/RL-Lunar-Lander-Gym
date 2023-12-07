@@ -66,8 +66,9 @@ class trainDQN():
             # Write the results to a CSV file every 10 iterations
             if (i + 1) % 10 == 0:
                 print("Writing results to CSV file?")
-                df = pd.DataFrame(results)
-                df.to_csv(self.path + 'results.csv', mode='a', index=False)
+                df = pd.DataFrame(results) # The results do not reset with each iteration
+                df.to_csv(self.path + 'results.csv', mode='w', index=False) # Recommended Change: change mode to a write only (Changed) 
+                # (This will update the results incase of a crash during training or interrupt so data is not lost)
                 self.save()
             
         return print("Training complete")
@@ -202,7 +203,7 @@ if __name__ == "__main__":
     # 0 for user_mode
     # 1 to train
     # 2 to play
-    choice = 2
+    choice = 1
     
     if choice == 0:
         # init agent
@@ -231,7 +232,7 @@ if __name__ == "__main__":
     elif choice == 1:
         agent = trainDQN() # takes some time to init
         # train a model to a set number of iterations/generations
-        agent.train(iters=1000) # This will take a few hours to train
+        agent.train(iters=2000) # This will take a few hours to train
         agent.save()
         agent.close()
     elif choice == 2:
