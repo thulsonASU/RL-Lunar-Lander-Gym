@@ -73,6 +73,6 @@ J.-H. Park, K. Farkhodov, S.-H. Lee, and K.-R. Kwon, "Deep Reinforcement Learnin
 ## Contributors
 [Zane Reynolds](https://github.com/zdreynol)<br/>
 [Sai Srinivas Tatwik Meesala](https://github.com/Tatwik19)<br/>
-Keshav Kabra
+[Keshav Anand Kabra](https://github.com/keshavkabra1521)
 
 
